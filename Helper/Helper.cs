@@ -37,7 +37,7 @@ namespace BulkTestUploader.Helper
 
                 List<List<IXLRangeRow>> groupedRows = rows.Select(r =>
                 {
-                    if (r.Cell(col["Work Item Type"]).GetString().Trim() == "Test Case") groupId++;
+                    if (r.Cell(col["Work Item Type"]).GetString().Trim() == "Test case") groupId++;
                     return new { Row = r, Group = groupId };
 
                 }).GroupBy(x => x.Group).Select(g => g.Select(x => x.Row).ToList()).ToList();
@@ -71,7 +71,7 @@ namespace BulkTestUploader.Helper
                         Title = headerRow.Cell(col["Title"]).GetString()?.Trim() ?? null,
                         Tags = headerRow.Cell(col["Tags"]).GetString()?.Trim() ?? null,
                         Steps = steps,
-                        ParentItem = headerRow.Cell(col["Parent Item"]).GetString()?.Trim() ?? null,
+                        // ParentItem = headerRow.Cell(col["Parent Item"]).GetString()?.Trim() ?? null,
                     };
 
                     results.Add(customTestCase);
@@ -81,13 +81,13 @@ namespace BulkTestUploader.Helper
             return results;
         }
 
-        public static List<List<JsonPatchOperation>> GenerateBatchForTestCases(List<CustomTestCase> customTestCases)
+        public static List<List<JsonPatchOperation>> GenerateBatchForTestCases(List<CustomTestCase> customTestCases, TestPlan testPlan)
         {
             List<List<JsonPatchOperation>> results = new List<List<JsonPatchOperation>>();
             foreach (CustomTestCase customTestCase in customTestCases)
             {
                 List<JsonPatchOperation> patchOperations = new List<JsonPatchOperation>();
-                TestCase testCase = BuildTestCase(customTestCase);
+                TestCase testCase = BuildTestCase(customTestCase, testPlan);
 
                 patchOperations.Add(new JsonPatchOperation()
                 {
@@ -117,7 +117,7 @@ namespace BulkTestUploader.Helper
             return results;
         }
 
-        private static TestCase BuildTestCase(CustomTestCase customTestCase)
+        private static TestCase BuildTestCase(CustomTestCase customTestCase, TestPlan testPlan)
         {
             return new TestCase
             {
@@ -139,6 +139,16 @@ namespace BulkTestUploader.Helper
                         {
                             Name = "Microsoft.VSTS.TCM.Steps",
                             Value = BuildStepsXml(customTestCase.Steps)
+                        },
+                        new CustomWorkItemField
+                        {
+                            Name = "System.AreaPath",
+                            Value = testPlan.AreaPath
+                        },
+                        new CustomWorkItemField
+                        {
+                            Name = "System.IterationPath",
+                            Value = testPlan.Iteration
                         }
                     }
                 }

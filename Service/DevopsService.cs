@@ -76,7 +76,7 @@ namespace BulkTestUploader.Service
                 foreach (List<JsonPatchOperation> testCasePatch in batch)
                 {
                     JsonPatchDocument testCasePatchDoc = [.. testCasePatch];
-                    WitBatchRequest request = witClient.CreateWorkItemBatchRequest(projectId, "Test Case", testCasePatchDoc, false, true);
+                    WitBatchRequest request = witClient.CreateWorkItemBatchRequest(projectId, "Test Case", testCasePatchDoc, false, false);
                     requests.Add(request);
                 }
 

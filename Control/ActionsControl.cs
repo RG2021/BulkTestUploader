@@ -32,57 +32,71 @@ namespace BulkTestUploader.Control
             ExportTemplate.Click += ExportTemplate_Click;
         }
 
-        private void UploadTestCases_Click(object? sender, EventArgs e)
+        private async void UploadTestCases_Click(object? sender, EventArgs e)
         {
+            UploadTestCases.Enabled = false;
             try
             {
                 string projectName = InputControl?.GetProjectName() ?? string.Empty;
                 Guid projectId = InputControl?.GetProjectId() ?? Guid.Empty;
-                int testPlanId = InputControl?.GetTestPlanId() ?? 0;
+
+                ComboItem<TestPlan>? selectedTestPlan = InputControl?.GetSelectedTestPlan();
+                TestPlan testPlan = selectedTestPlan.Value;
+                int testPlanId = int.Parse(selectedTestPlan?.Id ?? "0");
 
                 List<Suite> selectedValidSuites = SuitesGridControl?.GetSuiteList().Where(suite => !string.IsNullOrEmpty(suite.FilePath)).ToList() ?? new List<Suite>();
-                if (selectedValidSuites.Count == 0)
-                {
-                    Logger?.Log("No valid test suites with file paths found for upload.");
-                    return;
-                }
-
-                Logger?.Log($"Found {selectedValidSuites.Count} valid test suites for upload.");
-
-                foreach (Suite suite in selectedValidSuites)
-                {
-                    Stopwatch stopwatch = new Stopwatch();
-                    stopwatch.Start();
-
-                    List<CustomTestCase> testCases = LoadTestCasesFromFile(suite.FilePath);
-                    List<List<JsonPatchOperation>> batch = GenerateBatchForTestCases(testCases);
-
-                    List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, batch);
-
-                    List<int> createdTestCaseIds = [];
-                    foreach (WitBatchResponse response in responses.Where(r => r.Code == 200))
+                await Task.Run(() =>
+                {   
+                    if (selectedValidSuites.Count == 0)
                     {
-                        dynamic output = JsonConvert.DeserializeObject(response.Body);
-                        createdTestCaseIds.Add((int)output.id);
+                        Logger?.Log("No valid test suites with file paths found for upload.");
+                        return;
                     }
 
-                    if (createdTestCaseIds.Count == 0)
+                    Logger?.Log($"Found {selectedValidSuites.Count} valid test suites for upload.");
+
+                    foreach (Suite suite in selectedValidSuites)
                     {
-                        Logger?.Log($"No test cases were created for suite '{suite.SuiteId}'. Skipping adding to suite.");
-                        continue;
+                        Stopwatch stopwatch = new Stopwatch();
+                        stopwatch.Start();
+
+                        List<CustomTestCase> testCases = LoadTestCasesFromFile(suite.FilePath);
+                        List<List<JsonPatchOperation>> batch = GenerateBatchForTestCases(testCases, testPlan);
+
+                        List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, batch);
+
+                        List<int> createdTestCaseIds = [];
+                        foreach (WitBatchResponse response in responses.Where(r => r.Code == 200))
+                        {
+                            dynamic output = JsonConvert.DeserializeObject(response.Body);
+                            createdTestCaseIds.Add((int)output.id);
+                        }
+
+                        if (createdTestCaseIds.Count == 0)
+                        {
+                            Logger?.Log($"No test cases were created for suite '{suite.SuiteId}'. Skipping adding to suite.");
+                            continue;
+                        }
+
+                        Logger?.Log($"Created {createdTestCaseIds.Count} test cases for suite id '{suite.SuiteId}'.");
+
+                        List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdTestCaseIds);
+
+                        stopwatch.Stop();
+                        Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {stopwatch.ElapsedMilliseconds} ms.");
                     }
+                });
 
-                    Logger?.Log($"Created {createdTestCaseIds.Count} test cases for suite id '{suite.SuiteId}'.");
+                Logger?.Log($"Uploaded test cases successfully.");
 
-                    List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdTestCaseIds);
-
-                    stopwatch.Stop();
-                    Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {stopwatch.ElapsedMilliseconds} ms.");
-                }
             }
             catch (Exception ex)
             {
                 Logger?.Log($"Error during upload: {ex.Message}");
+            }
+            finally
+            {
+                UploadTestCases.Enabled = true;
             }
         }
 

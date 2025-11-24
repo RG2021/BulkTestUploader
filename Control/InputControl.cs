@@ -72,7 +72,7 @@ namespace BulkTestUploader.Control
                 ProjectComboBox.Items.Clear();
                 foreach (TeamProjectReference project in projects)
                 {
-                    ProjectComboBox.Items.Add(new ComboItem
+                    ProjectComboBox.Items.Add(new ComboItem<TeamProjectReference>
                     {
                         Name = project.Name,
                         Id = project.Id.ToString()
@@ -97,7 +97,7 @@ namespace BulkTestUploader.Control
 
         private void ProjectSelected(object? sender, EventArgs e)
         {
-            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
+            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
             List<TestPlan>? testPlans = DevopsService?.GetTestPlans(selectedProject.Id);
             testPlans?.Sort((x, y) => string.Compare(x.Name, y.Name));
 
@@ -111,10 +111,11 @@ namespace BulkTestUploader.Control
                 TestPlanComboBox.Items.Clear();
                 foreach (TestPlan plan in testPlans)
                 {
-                    TestPlanComboBox.Items.Add(new ComboItem
+                    TestPlanComboBox.Items.Add(new ComboItem<TestPlan>
                     {
                         Name = plan.Name,
-                        Id = plan.Id.ToString()
+                        Id = plan.Id.ToString(),
+                        Value = plan
                     });
                 }
 
@@ -132,8 +133,8 @@ namespace BulkTestUploader.Control
 
         private void TestPlanSelected(object? sender, EventArgs e)
         {
-            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
-            ComboItem selectedPlan = (ComboItem)TestPlanComboBox!.SelectedItem!;
+            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
+            ComboItem<TestPlan> selectedPlan = (ComboItem<TestPlan>)TestPlanComboBox!.SelectedItem!;
 
             List<TestSuite>? testSuites = DevopsService?.GetTestSuites(selectedProject.Id, int.Parse(selectedPlan.Id));
 
@@ -149,8 +150,8 @@ namespace BulkTestUploader.Control
 
         private void SelectSuiteButton_Click(object? sender, EventArgs e)
         {
-            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
-            ComboItem selectedPlan = (ComboItem)TestPlanComboBox!.SelectedItem!;
+            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
+            ComboItem<TestPlan> selectedPlan = (ComboItem<TestPlan>)TestPlanComboBox!.SelectedItem!;
 
             if(selectedProject == null || selectedPlan == null)
             {
@@ -181,20 +182,19 @@ namespace BulkTestUploader.Control
 
         public string GetProjectName()
         {
-            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
+            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
             return selectedProject.Name;
         }
 
         public Guid GetProjectId()
         {
-            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
+            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
             return Guid.Parse(selectedProject.Id);
         }
 
-        public int GetTestPlanId()
+        public ComboItem<TestPlan> GetSelectedTestPlan()
         {
-            ComboItem selectedPlan = (ComboItem)TestPlanComboBox!.SelectedItem!;
-            return int.Parse(selectedPlan.Id);
+            return (ComboItem<TestPlan>)TestPlanComboBox!.SelectedItem!;
         }
 
         public void SetSuiteButtonText(string text)

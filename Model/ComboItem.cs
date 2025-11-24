@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace BulkTestUploader.Model
 {
-    public class ComboItem
+    public class ComboItem<T> where T : class
     {
         public required string Name { get; set; }
         public required string Id { get; set; }
+        public T? Value { get; set; }
 
         public override string ToString()
         {
