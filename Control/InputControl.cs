@@ -194,6 +194,11 @@ namespace BulkTestUploader.Control
             return int.Parse(selectedPlan.Id);
         }
 
+        public void SetSuiteButtonText(string text)
+        {
+            SelectSuiteButton!.Text = text;
+        }
+
 
     }
 }

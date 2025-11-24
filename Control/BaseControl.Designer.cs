@@ -52,6 +52,11 @@
             groupBox1 = new GroupBox();
             logsTextBox = new RichTextBox();
             actionControls = new ToolStrip();
+            toolStripLabel1 = new ToolStripLabel();
+            importTemplateButton = new ToolStripButton();
+            toolStripSeparator1 = new ToolStripSeparator();
+            exportTemplateButton = new ToolStripButton();
+            toolStripSeparator2 = new ToolStripSeparator();
             uploadTestCasesButton = new ToolStripButton();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
@@ -71,7 +76,7 @@
             // 
             splitContainer1.BorderStyle = BorderStyle.Fixed3D;
             splitContainer1.Dock = DockStyle.Fill;
-            splitContainer1.Location = new Point(0, 34);
+            splitContainer1.Location = new Point(0, 49);
             splitContainer1.Name = "splitContainer1";
             // 
             // splitContainer1.Panel1
@@ -83,7 +88,7 @@
             // 
             splitContainer1.Panel2.Controls.Add(groupBox1);
             splitContainer1.Panel2.Padding = new Padding(10);
-            splitContainer1.Size = new Size(1303, 673);
+            splitContainer1.Size = new Size(1303, 658);
             splitContainer1.SplitterDistance = 956;
             splitContainer1.TabIndex = 0;
             // 
@@ -103,7 +108,7 @@
             // splitContainer2.Panel2
             // 
             splitContainer2.Panel2.Controls.Add(suitesGrid);
-            splitContainer2.Size = new Size(932, 649);
+            splitContainer2.Size = new Size(932, 634);
             splitContainer2.SplitterDistance = 253;
             splitContainer2.TabIndex = 0;
             // 
@@ -265,7 +270,7 @@
             suitesGrid.RowHeadersWidth = 62;
             suitesGrid.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             suitesGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            suitesGrid.Size = new Size(932, 392);
+            suitesGrid.Size = new Size(932, 377);
             suitesGrid.TabIndex = 0;
             // 
             // SuiteId
@@ -331,7 +336,7 @@
             groupBox1.Dock = DockStyle.Fill;
             groupBox1.Location = new Point(10, 10);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(319, 649);
+            groupBox1.Size = new Size(319, 634);
             groupBox1.TabIndex = 0;
             groupBox1.TabStop = false;
             groupBox1.Text = "Logs";
@@ -344,27 +349,61 @@
             logsTextBox.Location = new Point(3, 27);
             logsTextBox.Name = "logsTextBox";
             logsTextBox.ReadOnly = true;
-            logsTextBox.Size = new Size(313, 619);
+            logsTextBox.Size = new Size(313, 604);
             logsTextBox.TabIndex = 0;
             logsTextBox.Text = "";
             // 
             // actionControls
             // 
-            actionControls.BackColor = SystemColors.ControlLight;
+            actionControls.AutoSize = false;
+            actionControls.BackColor = SystemColors.Control;
             actionControls.ImageScalingSize = new Size(24, 24);
-            actionControls.Items.AddRange(new ToolStripItem[] { uploadTestCasesButton });
+            actionControls.Items.AddRange(new ToolStripItem[] { toolStripLabel1, importTemplateButton, toolStripSeparator1, exportTemplateButton, toolStripSeparator2, uploadTestCasesButton });
             actionControls.Location = new Point(0, 0);
             actionControls.Name = "actionControls";
-            actionControls.Size = new Size(1303, 34);
+            actionControls.Size = new Size(1303, 49);
             actionControls.TabIndex = 0;
             actionControls.Text = "toolStrip1";
             // 
+            // toolStripLabel1
+            // 
+            toolStripLabel1.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            toolStripLabel1.Name = "toolStripLabel1";
+            toolStripLabel1.Size = new Size(172, 44);
+            toolStripLabel1.Text = "Bulk Test Uploader";
+            // 
+            // importTemplateButton
+            // 
+            importTemplateButton.Image = Properties.Resources.import;
+            importTemplateButton.ImageTransparentColor = Color.Magenta;
+            importTemplateButton.Name = "importTemplateButton";
+            importTemplateButton.Size = new Size(171, 44);
+            importTemplateButton.Text = "Import Template";
+            // 
+            // toolStripSeparator1
+            // 
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(6, 49);
+            // 
+            // exportTemplateButton
+            // 
+            exportTemplateButton.Image = Properties.Resources.export;
+            exportTemplateButton.ImageTransparentColor = Color.Magenta;
+            exportTemplateButton.Name = "exportTemplateButton";
+            exportTemplateButton.Size = new Size(167, 44);
+            exportTemplateButton.Text = "Export Template";
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(6, 49);
+            // 
             // uploadTestCasesButton
             // 
-            uploadTestCasesButton.Image = Properties.Resources.compose;
+            uploadTestCasesButton.Image = Properties.Resources.setting;
             uploadTestCasesButton.ImageTransparentColor = Color.Magenta;
             uploadTestCasesButton.Name = "uploadTestCasesButton";
-            uploadTestCasesButton.Size = new Size(98, 29);
+            uploadTestCasesButton.Size = new Size(98, 44);
             uploadTestCasesButton.Text = "Upload";
             // 
             // BaseControl
@@ -392,7 +431,6 @@
             actionControls.ResumeLayout(false);
             actionControls.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
@@ -421,5 +459,10 @@
         private DataGridViewTextBoxColumn SuitePath;
         private DataGridViewTextBoxColumn FilePath;
         private DataGridViewButtonColumn action;
+        private ToolStripButton importTemplateButton;
+        private ToolStripButton exportTemplateButton;
+        private ToolStripLabel toolStripLabel1;
+        private ToolStripSeparator toolStripSeparator1;
+        private ToolStripSeparator toolStripSeparator2;
     }
 }

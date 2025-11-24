@@ -34,7 +34,7 @@ namespace BulkTestUploader.Control
             {
                 suiteBindingList.Add(suite);
             }
-            Logger?.Log($"{testSuites.Count} test suites selected.");
+            InputControl?.SetSuiteButtonText($"{testSuites.Count} Suites Selected");
         }
 
         public BindingList<Suite> GetSuiteList()
