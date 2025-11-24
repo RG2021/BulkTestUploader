@@ -176,6 +176,24 @@ namespace BulkTestUploader.Control
             }
         }
 
+        public string GetProjectName()
+        {
+            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
+            return selectedProject.Name;
+        }
+
+        public Guid GetProjectId()
+        {
+            ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
+            return Guid.Parse(selectedProject.Id);
+        }
+
+        public int GetTestPlanId()
+        {
+            ComboItem selectedPlan = (ComboItem)TestPlanComboBox!.SelectedItem!;
+            return int.Parse(selectedPlan.Id);
+        }
+
 
     }
 }

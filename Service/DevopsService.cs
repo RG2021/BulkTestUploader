@@ -1,13 +1,19 @@
 ﻿using Microsoft.TeamFoundation.Core.WebApi;
 using Microsoft.TeamFoundation.Test.WebApi;
+using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
+using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.TestManagement.TestPlanning.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
+using Microsoft.VisualStudio.Services.WebApi.Patch;
+using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static BulkTestUploader.Helper.Helper;
 using TestCase = Microsoft.VisualStudio.Services.TestManagement.TestPlanning.WebApi.TestCase;
 
 namespace BulkTestUploader.Service
@@ -54,19 +60,40 @@ namespace BulkTestUploader.Service
             using (VssConnection connection = new VssConnection(new Uri(_orgUrl), creds))
             {
                 TestPlanHttpClient testClient = connection.GetClient<TestPlanHttpClient>();
-                List<TestSuite> testSuites = testClient.GetTestSuitesForPlanAsync(projectId, planId, asTreeView:true).Result;
+                List<TestSuite> testSuites = testClient.GetTestSuitesForPlanAsync(projectId, planId, asTreeView: true).Result;
                 return testSuites;
             }
         }
 
-        public List<TestCase> CreateTestCases(string projectId, int planId, int suiteId, List<SuiteTestCaseCreateUpdateParameters> testCases)
+        public List<WitBatchResponse> CreateTestCases(Guid projectId, List<List<JsonPatchOperation>> batch)
         {
             VssBasicCredential creds = new VssBasicCredential(string.Empty, _patToken);
             using (VssConnection connection = new VssConnection(new Uri(_orgUrl), creds))
             {
+                WorkItemTrackingHttpClient witClient = connection.GetClient<WorkItemTrackingHttpClient>();
+                List<WitBatchRequest> requests = new List<WitBatchRequest>();
+
+                foreach (List<JsonPatchOperation> testCasePatch in batch)
+                {
+                    JsonPatchDocument testCasePatchDoc = [.. testCasePatch];
+                    WitBatchRequest request = witClient.CreateWorkItemBatchRequest(projectId, "Test Case", testCasePatchDoc, false, true);
+                    requests.Add(request);
+                }
+
+                List<WitBatchResponse> responses = witClient.ExecuteBatchRequest(requests).Result;
+                return responses;
+            }
+        }
+
+        public List<TestCase> AddTestCaseToSuite(string projectName, int planId, int suiteId, List<int> testCaseIds)
+        {
+            VssBasicCredential creds = new VssBasicCredential(string.Empty, _patToken);
+            using (VssConnection connection = new VssConnection(new Uri(_orgUrl), creds))
+            {
+                List<SuiteTestCaseCreateUpdateParameters> testCases = GetSuiteTestCaseList(testCaseIds);
                 TestPlanHttpClient testClient = connection.GetClient<TestPlanHttpClient>();
-                List<TestCase> createdTestCases = testClient.AddTestCasesToSuiteAsync(testCases, projectId, planId, suiteId).Result;
-                return createdTestCases;
+                List<TestCase> results = testClient.AddTestCasesToSuiteAsync(testCases, projectName, planId, suiteId).Result;
+                return results;
             }
         }
     }
