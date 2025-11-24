@@ -65,6 +65,8 @@ namespace BulkTestUploader.Control
         private void LoadProjects(Service.DevopsService service)
         {
             List<TeamProjectReference>? projects = service?.GetProjects();
+            projects?.Sort((x, y) => string.Compare(x.Name, y.Name));
+
             if (projects != null && ProjectComboBox != null)
             {
                 ProjectComboBox.Items.Clear();
@@ -97,6 +99,7 @@ namespace BulkTestUploader.Control
         {
             ComboItem selectedProject = (ComboItem)ProjectComboBox!.SelectedItem!;
             List<TestPlan>? testPlans = DevopsService?.GetTestPlans(selectedProject.Id);
+            testPlans?.Sort((x, y) => string.Compare(x.Name, y.Name));
 
             LoadTestPlans(testPlans);
         }
