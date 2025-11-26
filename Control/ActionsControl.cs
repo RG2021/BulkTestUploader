@@ -18,23 +18,46 @@ namespace BulkTestUploader.Control
 {
     public class ActionsControl : BaseControl
     {
-        ToolStripButton UploadTestCases { get; set; }
-        ToolStripButton ImportTemplate { get; set; }
-        ToolStripButton ExportTemplate { get; set; }
-        public ActionsControl(ToolStrip actionsControl)
+        public ToolStripButton UploadTestCases { get; set; }
+        public ToolStripButton ImportTemplate { get; set; }
+        public ToolStripButton ExportTemplate { get; set; }
+        public ToolStripButton ClearLogs { get; set; }
+        public ToolStripButton CancelOperation { get; set; }
+        private Timer Timer { get; set; }
+
+        private bool isOperationCancelled = false;
+
+        private Stopwatch mainStopWatch = new Stopwatch();
+        private Stopwatch suiteStopWatch = new Stopwatch();
+        public ActionsControl(ToolStrip actionsControl, Timer timer)
         {
             UploadTestCases = actionsControl.Items["uploadTestCasesButton"] as ToolStripButton;
             ImportTemplate = actionsControl.Items["importTemplateButton"] as ToolStripButton;
             ExportTemplate = actionsControl.Items["exportTemplateButton"] as ToolStripButton;
+            ClearLogs = actionsControl.Items["clearLogsButton"] as ToolStripButton;
+            CancelOperation = actionsControl.Items["cancelButton"] as ToolStripButton;
+            Timer = timer;
 
             UploadTestCases.Click += UploadTestCases_Click;
             ImportTemplate.Click += ImportTemplate_Click;
             ExportTemplate.Click += ExportTemplate_Click;
+            ClearLogs.Click += ClearLogs_Click;
+            CancelOperation.Click += CancelOperation_Click;
+            Timer.Tick += Timer_Tick;
         }
 
         private async void UploadTestCases_Click(object? sender, EventArgs e)
         {
             UploadTestCases.Enabled = false;
+            ImportTemplate.Enabled = false;
+            ExportTemplate.Enabled = false;
+            CancelOperation.Enabled = true;
+
+            StatusBarControl.ResetStatusBar();
+
+            mainStopWatch.Restart();
+            Timer.Start();
+
             try
             {
                 string projectName = InputControl?.GetProjectName() ?? string.Empty;
@@ -45,24 +68,32 @@ namespace BulkTestUploader.Control
                 int testPlanId = int.Parse(selectedTestPlan?.Id ?? "0");
 
                 List<Suite> selectedValidSuites = SuitesGridControl?.GetSuiteList().Where(suite => !string.IsNullOrEmpty(suite.FilePath)).ToList() ?? new List<Suite>();
+
+                if (selectedValidSuites.Count == 0)
+                {
+                    Logger?.Log("No valid test suites with file paths found for upload.");
+                    return;
+                }
+
+                int progressStep = 100 / selectedValidSuites.Count;
+                // StatusBarControl.ProgressBar.Step = progressStep;
+
+                Logger?.Log($"Found {selectedValidSuites.Count} valid test suites for upload.");
+
                 await Task.Run(() =>
-                {   
-                    if (selectedValidSuites.Count == 0)
-                    {
-                        Logger?.Log("No valid test suites with file paths found for upload.");
-                        return;
-                    }
-
-                    Logger?.Log($"Found {selectedValidSuites.Count} valid test suites for upload.");
-
+                {
                     foreach (Suite suite in selectedValidSuites)
                     {
-                        Stopwatch stopwatch = new Stopwatch();
-                        stopwatch.Start();
+                        suiteStopWatch.Restart();
+
+                        if (isOperationCancelled)
+                        {
+                            isOperationCancelled = false;
+                            throw new OperationCanceledException("Upload operation was cancelled by the user.");
+                        }
 
                         List<CustomTestCase> testCases = LoadTestCasesFromFile(suite.FilePath);
                         List<List<JsonPatchOperation>> batch = GenerateBatchForTestCases(testCases, testPlan);
-
                         List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, batch);
 
                         List<int> createdTestCaseIds = [];
@@ -82,8 +113,11 @@ namespace BulkTestUploader.Control
 
                         List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdTestCaseIds);
 
-                        stopwatch.Stop();
-                        Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {stopwatch.ElapsedMilliseconds} ms.");
+                        suiteStopWatch.Stop();
+                        StatusBarControl.UpdateProgress(progressStep);
+                        StatusBarControl.SetUploadedCount(StatusBarControl.UpdateProgress(0) / progressStep, selectedValidSuites.Count);
+
+                        Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {suiteStopWatch.ElapsedMilliseconds} ms.");
                     }
                 });
 
@@ -97,6 +131,14 @@ namespace BulkTestUploader.Control
             finally
             {
                 UploadTestCases.Enabled = true;
+                ImportTemplate.Enabled = true;
+                ExportTemplate.Enabled = true;
+                CancelOperation.Enabled = false;
+
+                mainStopWatch.Stop();
+                suiteStopWatch.Stop();
+                Timer.Stop();
+                StatusBarControl.UpdateProgress(100);
             }
         }
 
@@ -173,6 +215,24 @@ namespace BulkTestUploader.Control
                         Logger?.Log($"Template file exported successfully to {filePath}");
                     }
                 }
+            }
+        }
+        private void ClearLogs_Click(object? sender, EventArgs e)
+        {
+            Logger?.ClearLogs();
+        }
+
+        private void CancelOperation_Click(object? sender, EventArgs e)
+        {
+            isOperationCancelled = true;
+            Logger?.Log("Operation cancellation requested.");
+        }
+        private void Timer_Tick(object? sender, EventArgs e)
+        {
+            if (mainStopWatch.IsRunning)
+            {
+                TimeSpan elapsed = mainStopWatch.Elapsed;
+                StatusBarControl?.SetTimeTaken(elapsed.ToString(@"hh\:mm\:ss"));
             }
         }
     }

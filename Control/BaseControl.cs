@@ -11,6 +11,7 @@ namespace BulkTestUploader.Control
         protected static InputControl? InputControl;
         protected static SuitesGridControl? SuitesGridControl;
         protected static ActionsControl? ActionsControl;
+        protected static StatusBarControl? StatusBarControl;
 
         public BaseControl()
         {
@@ -28,7 +29,8 @@ namespace BulkTestUploader.Control
             Logger = new LogsControl(logsTextBox);
             InputControl = new InputControl(inputTableLayoutPanel);
             SuitesGridControl = new SuitesGridControl(suitesGrid);
-            ActionsControl = new ActionsControl(actionControls);
+            StatusBarControl = new StatusBarControl(statusBarStrip);
+            ActionsControl = new ActionsControl(actionControls, timerControl);
         }
     }
 }

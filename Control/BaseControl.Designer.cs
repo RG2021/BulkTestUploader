@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             splitContainer1 = new SplitContainer();
             splitContainer2 = new SplitContainer();
@@ -53,11 +54,19 @@
             logsTextBox = new RichTextBox();
             actionControls = new ToolStrip();
             toolStripLabel1 = new ToolStripLabel();
-            importTemplateButton = new ToolStripButton();
             toolStripSeparator1 = new ToolStripSeparator();
             exportTemplateButton = new ToolStripButton();
+            importTemplateButton = new ToolStripButton();
             toolStripSeparator2 = new ToolStripSeparator();
             uploadTestCasesButton = new ToolStripButton();
+            clearLogsButton = new ToolStripButton();
+            toolStripSeparator3 = new ToolStripSeparator();
+            cancelButton = new ToolStripButton();
+            statusBarStrip = new StatusStrip();
+            countStatusLabel = new ToolStripStatusLabel();
+            timeStatusLabel = new ToolStripStatusLabel();
+            progressStatusBar = new ToolStripProgressBar();
+            timerControl = new System.Windows.Forms.Timer(components);
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -70,6 +79,7 @@
             ((System.ComponentModel.ISupportInitialize)suitesGrid).BeginInit();
             groupBox1.SuspendLayout();
             actionControls.SuspendLayout();
+            statusBarStrip.SuspendLayout();
             SuspendLayout();
             // 
             // splitContainer1
@@ -88,7 +98,7 @@
             // 
             splitContainer1.Panel2.Controls.Add(groupBox1);
             splitContainer1.Panel2.Padding = new Padding(10);
-            splitContainer1.Size = new Size(1303, 658);
+            splitContainer1.Size = new Size(1303, 626);
             splitContainer1.SplitterDistance = 956;
             splitContainer1.TabIndex = 0;
             // 
@@ -108,7 +118,7 @@
             // splitContainer2.Panel2
             // 
             splitContainer2.Panel2.Controls.Add(suitesGrid);
-            splitContainer2.Size = new Size(932, 634);
+            splitContainer2.Size = new Size(932, 602);
             splitContainer2.SplitterDistance = 253;
             splitContainer2.TabIndex = 0;
             // 
@@ -270,7 +280,7 @@
             suitesGrid.RowHeadersWidth = 62;
             suitesGrid.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
             suitesGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            suitesGrid.Size = new Size(932, 377);
+            suitesGrid.Size = new Size(932, 345);
             suitesGrid.TabIndex = 0;
             // 
             // SuiteId
@@ -336,7 +346,7 @@
             groupBox1.Dock = DockStyle.Fill;
             groupBox1.Location = new Point(10, 10);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(319, 634);
+            groupBox1.Size = new Size(319, 602);
             groupBox1.TabIndex = 0;
             groupBox1.TabStop = false;
             groupBox1.Text = "Logs";
@@ -349,7 +359,7 @@
             logsTextBox.Location = new Point(3, 27);
             logsTextBox.Name = "logsTextBox";
             logsTextBox.ReadOnly = true;
-            logsTextBox.Size = new Size(313, 604);
+            logsTextBox.Size = new Size(313, 572);
             logsTextBox.TabIndex = 0;
             logsTextBox.Text = "";
             // 
@@ -358,7 +368,7 @@
             actionControls.AutoSize = false;
             actionControls.BackColor = SystemColors.Control;
             actionControls.ImageScalingSize = new Size(24, 24);
-            actionControls.Items.AddRange(new ToolStripItem[] { toolStripLabel1, importTemplateButton, toolStripSeparator1, exportTemplateButton, toolStripSeparator2, uploadTestCasesButton });
+            actionControls.Items.AddRange(new ToolStripItem[] { toolStripLabel1, toolStripSeparator1, exportTemplateButton, importTemplateButton, toolStripSeparator2, uploadTestCasesButton, clearLogsButton, toolStripSeparator3, cancelButton });
             actionControls.Location = new Point(0, 0);
             actionControls.Name = "actionControls";
             actionControls.Size = new Size(1303, 49);
@@ -371,14 +381,6 @@
             toolStripLabel1.Name = "toolStripLabel1";
             toolStripLabel1.Size = new Size(172, 44);
             toolStripLabel1.Text = "Bulk Test Uploader";
-            // 
-            // importTemplateButton
-            // 
-            importTemplateButton.Image = Properties.Resources.import;
-            importTemplateButton.ImageTransparentColor = Color.Magenta;
-            importTemplateButton.Name = "importTemplateButton";
-            importTemplateButton.Size = new Size(171, 44);
-            importTemplateButton.Text = "Import Template";
             // 
             // toolStripSeparator1
             // 
@@ -393,6 +395,14 @@
             exportTemplateButton.Size = new Size(167, 44);
             exportTemplateButton.Text = "Export Template";
             // 
+            // importTemplateButton
+            // 
+            importTemplateButton.Image = Properties.Resources.import;
+            importTemplateButton.ImageTransparentColor = Color.Magenta;
+            importTemplateButton.Name = "importTemplateButton";
+            importTemplateButton.Size = new Size(171, 44);
+            importTemplateButton.Text = "Import Template";
+            // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
@@ -406,12 +416,70 @@
             uploadTestCasesButton.Size = new Size(98, 44);
             uploadTestCasesButton.Text = "Upload";
             // 
+            // clearLogsButton
+            // 
+            clearLogsButton.Alignment = ToolStripItemAlignment.Right;
+            clearLogsButton.Image = Properties.Resources.broom;
+            clearLogsButton.ImageTransparentColor = Color.Magenta;
+            clearLogsButton.Name = "clearLogsButton";
+            clearLogsButton.Size = new Size(122, 44);
+            clearLogsButton.Text = "Clear Logs";
+            // 
+            // toolStripSeparator3
+            // 
+            toolStripSeparator3.Name = "toolStripSeparator3";
+            toolStripSeparator3.Size = new Size(6, 49);
+            // 
+            // cancelButton
+            // 
+            cancelButton.Enabled = false;
+            cancelButton.Image = Properties.Resources.cancel__1_;
+            cancelButton.ImageTransparentColor = Color.Magenta;
+            cancelButton.Name = "cancelButton";
+            cancelButton.Size = new Size(91, 44);
+            cancelButton.Text = "Cancel";
+            // 
+            // statusBarStrip
+            // 
+            statusBarStrip.ImageScalingSize = new Size(24, 24);
+            statusBarStrip.Items.AddRange(new ToolStripItem[] { countStatusLabel, timeStatusLabel, progressStatusBar });
+            statusBarStrip.Location = new Point(0, 675);
+            statusBarStrip.Name = "statusBarStrip";
+            statusBarStrip.RightToLeft = RightToLeft.Yes;
+            statusBarStrip.Size = new Size(1303, 32);
+            statusBarStrip.TabIndex = 1;
+            statusBarStrip.Text = "statusStrip1";
+            // 
+            // countStatusLabel
+            // 
+            countStatusLabel.Name = "countStatusLabel";
+            countStatusLabel.Size = new Size(192, 25);
+            countStatusLabel.Text = "Uploaded 0 of 0 suites";
+            // 
+            // timeStatusLabel
+            // 
+            timeStatusLabel.Name = "timeStatusLabel";
+            timeStatusLabel.Size = new Size(80, 25);
+            timeStatusLabel.Text = "00:00:00";
+            // 
+            // progressStatusBar
+            // 
+            progressStatusBar.ForeColor = Color.SpringGreen;
+            progressStatusBar.Name = "progressStatusBar";
+            progressStatusBar.Size = new Size(150, 24);
+            progressStatusBar.Style = ProgressBarStyle.Continuous;
+            // 
+            // timerControl
+            // 
+            timerControl.Interval = 1000;
+            // 
             // BaseControl
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1303, 712);
             Controls.Add(splitContainer1);
+            Controls.Add(statusBarStrip);
             Controls.Add(actionControls);
             Name = "BaseControl";
             Padding = new Padding(0, 0, 0, 5);
@@ -430,7 +498,10 @@
             groupBox1.ResumeLayout(false);
             actionControls.ResumeLayout(false);
             actionControls.PerformLayout();
+            statusBarStrip.ResumeLayout(false);
+            statusBarStrip.PerformLayout();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -464,5 +535,13 @@
         private ToolStripLabel toolStripLabel1;
         private ToolStripSeparator toolStripSeparator1;
         private ToolStripSeparator toolStripSeparator2;
+        private ToolStripButton clearLogsButton;
+        private ToolStripButton cancelButton;
+        private ToolStripSeparator toolStripSeparator3;
+        private StatusStrip statusBarStrip;
+        private ToolStripStatusLabel countStatusLabel;
+        private ToolStripStatusLabel timeStatusLabel;
+        private ToolStripProgressBar progressStatusBar;
+        private System.Windows.Forms.Timer timerControl;
     }
 }
