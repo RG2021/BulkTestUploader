@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace BulkTestUploader.Model
 {
-    public class Suite : INotifyPropertyChanged
+    public class GridSuite : INotifyPropertyChanged
     {
         public string SuiteId { get; set; } = string.Empty;
         public string SuiteName { get; set; } = string.Empty;
         public string SuitePath { get; set; } = string.Empty;
-        private string _filePath;
+        private string _filePath = string.Empty;
 
         public string FilePath
         {
@@ -27,7 +27,7 @@ namespace BulkTestUploader.Model
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

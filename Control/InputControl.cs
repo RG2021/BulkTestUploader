@@ -75,7 +75,8 @@ namespace BulkTestUploader.Control
                     ProjectComboBox.Items.Add(new ComboItem<TeamProjectReference>
                     {
                         Name = project.Name,
-                        Id = project.Id.ToString()
+                        Id = project.Id.ToString(),
+                        Value = project
                     });
                 }
 
@@ -168,7 +169,7 @@ namespace BulkTestUploader.Control
                     Logger?.Log("Test Suites loaded into tree view.");
                     if (suitesForm.ShowDialog() == DialogResult.OK)
                     {
-                        List<Suite> selectedSuites = suitesForm.GetCheckedSuites();
+                        List<GridSuite> selectedSuites = suitesForm.GetCheckedSuites();
                         SelectSuiteButton.Text = $"{selectedSuites.Count} Suites Selected";
                         SuitesGridControl?.LoadSuites(selectedSuites);
                     }
@@ -180,21 +181,14 @@ namespace BulkTestUploader.Control
             }
         }
 
-        public string GetProjectName()
+        public TeamProjectReference GetSelectedProject()
         {
-            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
-            return selectedProject.Name;
+            return (TeamProjectReference)((ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!).Value!;
         }
 
-        public Guid GetProjectId()
+        public TestPlan GetSelectedTestPlan()
         {
-            ComboItem<TeamProjectReference> selectedProject = (ComboItem<TeamProjectReference>)ProjectComboBox!.SelectedItem!;
-            return Guid.Parse(selectedProject.Id);
-        }
-
-        public ComboItem<TestPlan> GetSelectedTestPlan()
-        {
-            return (ComboItem<TestPlan>)TestPlanComboBox!.SelectedItem!;
+            return (TestPlan)((ComboItem<TestPlan>)TestPlanComboBox!.SelectedItem!).Value!;
         }
 
         public void SetSuiteButtonText(string text)

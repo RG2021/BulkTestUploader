@@ -1,5 +1,7 @@
 ﻿using BulkTestUploader.Model;
 using ClosedXML.Excel;
+using Microsoft.TeamFoundation.Core.WebApi;
+using Microsoft.TeamFoundation.TestManagement.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.TestManagement.TestPlanning.WebApi;
 using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
@@ -9,9 +11,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using static BulkTestUploader.Helper.Helper;
+using TestPlan = Microsoft.VisualStudio.Services.TestManagement.TestPlanning.WebApi.TestPlan;
 using Timer = System.Windows.Forms.Timer;
 
 namespace BulkTestUploader.Control
@@ -37,7 +41,7 @@ namespace BulkTestUploader.Control
             ClearLogs = actionsControl.Items["clearLogsButton"] as ToolStripButton;
             CancelOperation = actionsControl.Items["cancelButton"] as ToolStripButton;
             Timer = timer;
-
+            
             UploadTestCases.Click += UploadTestCases_Click;
             ImportTemplate.Click += ImportTemplate_Click;
             ExportTemplate.Click += ExportTemplate_Click;
@@ -60,14 +64,11 @@ namespace BulkTestUploader.Control
 
             try
             {
-                string projectName = InputControl?.GetProjectName() ?? string.Empty;
-                Guid projectId = InputControl?.GetProjectId() ?? Guid.Empty;
 
-                ComboItem<TestPlan>? selectedTestPlan = InputControl?.GetSelectedTestPlan();
-                TestPlan testPlan = selectedTestPlan.Value;
-                int testPlanId = int.Parse(selectedTestPlan?.Id ?? "0");
+                TeamProjectReference selectedProject = InputControl.GetSelectedProject();
+                TestPlan selectedTestPlan = InputControl.GetSelectedTestPlan();
 
-                List<Suite> selectedValidSuites = SuitesGridControl?.GetSuiteList().Where(suite => !string.IsNullOrEmpty(suite.FilePath)).ToList() ?? new List<Suite>();
+                List<GridSuite> selectedValidSuites = SuitesGridControl?.GetSuiteList().Where(suite => !string.IsNullOrEmpty(suite.FilePath)).ToList() ?? new List<GridSuite>();
 
                 if (selectedValidSuites.Count == 0)
                 {
@@ -75,52 +76,8 @@ namespace BulkTestUploader.Control
                     return;
                 }
 
-                int progressStep = 100 / selectedValidSuites.Count;
-                // StatusBarControl.ProgressBar.Step = progressStep;
-
                 Logger?.Log($"Found {selectedValidSuites.Count} valid test suites for upload.");
-
-                await Task.Run(() =>
-                {
-                    foreach (Suite suite in selectedValidSuites)
-                    {
-                        suiteStopWatch.Restart();
-
-                        if (isOperationCancelled)
-                        {
-                            isOperationCancelled = false;
-                            throw new OperationCanceledException("Upload operation was cancelled by the user.");
-                        }
-
-                        List<CustomTestCase> testCases = LoadTestCasesFromFile(suite.FilePath);
-                        List<List<JsonPatchOperation>> batch = GenerateBatchForTestCases(testCases, testPlan);
-                        List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, batch);
-
-                        List<int> createdTestCaseIds = [];
-                        foreach (WitBatchResponse response in responses.Where(r => r.Code == 200))
-                        {
-                            dynamic output = JsonConvert.DeserializeObject(response.Body);
-                            createdTestCaseIds.Add((int)output.id);
-                        }
-
-                        if (createdTestCaseIds.Count == 0)
-                        {
-                            Logger?.Log($"No test cases were created for suite '{suite.SuiteId}'. Skipping adding to suite.");
-                            continue;
-                        }
-
-                        Logger?.Log($"Created {createdTestCaseIds.Count} test cases for suite id '{suite.SuiteId}'.");
-
-                        List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdTestCaseIds);
-
-                        suiteStopWatch.Stop();
-                        StatusBarControl.UpdateProgress(progressStep);
-                        StatusBarControl.SetUploadedCount(StatusBarControl.UpdateProgress(0) / progressStep, selectedValidSuites.Count);
-
-                        Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {suiteStopWatch.ElapsedMilliseconds} ms.");
-                    }
-                });
-
+                await Task.Run(async() => await UploadSuites(selectedProject, selectedTestPlan, selectedValidSuites));
                 Logger?.Log($"Uploaded test cases successfully.");
 
             }
@@ -139,6 +96,53 @@ namespace BulkTestUploader.Control
                 suiteStopWatch.Stop();
                 Timer.Stop();
                 StatusBarControl.UpdateProgress(100);
+            }
+        }
+
+        private async Task UploadSuites(TeamProjectReference project, TestPlan testPlan, List<GridSuite> suites)
+        {
+            string projectName = project.Name ?? string.Empty;
+            Guid projectId = Guid.Parse(project.Id.ToString());
+            int testPlanId = int.Parse(testPlan.Id.ToString());
+
+            int progressStep = 100 / suites.Count;
+
+            foreach (GridSuite suite in suites)
+            {
+                suiteStopWatch.Restart();
+
+                if (isOperationCancelled)
+                {
+                    isOperationCancelled = false;
+                    throw new OperationCanceledException("Upload operation was cancelled by the user.");
+                }
+
+                List<TestCaseItem> testCases = LoadTestCasesFromFile(suite.FilePath, testPlan);
+                List<List<JsonPatchOperation>> testCasesBatch = GenerateBatchForTestCases(testCases);
+                List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, testCasesBatch);
+
+                List<int> createdTestCaseIds = [];
+                foreach (WitBatchResponse response in responses.Where(r => r.Code == 200))
+                {
+                    dynamic output = JsonConvert.DeserializeObject(response.Body);
+                    createdTestCaseIds.Add((int)output.id);
+                }
+
+                if (createdTestCaseIds.Count == 0)
+                {
+                    Logger?.Log($"No test cases were created for suite '{suite.SuiteId}'. Skipping adding to suite.");
+                    continue;
+                }
+
+                Logger?.Log($"Created {createdTestCaseIds.Count} test cases for suite id '{suite.SuiteId}'.");
+                List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdTestCaseIds);
+
+                suiteStopWatch.Stop();
+
+                StatusBarControl.UpdateProgress(progressStep);
+                StatusBarControl.SetUploadedCount(StatusBarControl.UpdateProgress(0) / progressStep, suites.Count);
+
+                Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {suiteStopWatch.ElapsedMilliseconds} ms.");
             }
         }
 
@@ -168,7 +172,7 @@ namespace BulkTestUploader.Control
                         }
                         Logger?.Log("Template file validated successfully.");
 
-                        List<Suite> importedSuites = worksheet.RowsUsed().Skip(1).Select(row => new Suite
+                        List<GridSuite> importedSuites = worksheet.RowsUsed().Skip(1).Select(row => new GridSuite
                         {
                             SuiteId = row.Cell(col["Suite ID"]).GetString().Trim(),
                             SuiteName = row.Cell(col["Suite Name"]).GetString().Trim(),
@@ -200,9 +204,9 @@ namespace BulkTestUploader.Control
                         worksheet.Cell(1, 3).Value = "Suite Path";
                         worksheet.Cell(1, 4).Value = "Test File Path";
 
-                        List<Suite> suites = SuitesGridControl?.GetSuiteList().ToList() ?? new List<Suite>();
+                        List<GridSuite> suites = SuitesGridControl?.GetSuiteList().ToList() ?? new List<GridSuite>();
 
-                        foreach (Suite suite in suites)
+                        foreach (GridSuite suite in suites)
                         {
                             int newRow = worksheet.LastRowUsed().RowNumber() + 1;
                             worksheet.Cell(newRow, 1).Value = suite.SuiteId;

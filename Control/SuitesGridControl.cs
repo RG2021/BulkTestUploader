@@ -12,13 +12,13 @@ namespace BulkTestUploader.Control
     public class SuitesGridControl : BaseControl
     {
         private readonly DataGridView suitesGridView;
-        private BindingList<Suite> suiteBindingList;
+        private BindingList<GridSuite> suiteBindingList;
         private BindingSource suiteBindingSource;
         public SuitesGridControl(DataGridView dataGridView)
         {
             suitesGridView = dataGridView;
 
-            suiteBindingList = new BindingList<Suite>();
+            suiteBindingList = new BindingList<GridSuite>();
             suiteBindingSource = new BindingSource();
             suiteBindingSource.DataSource = suiteBindingList;
 
@@ -27,22 +27,22 @@ namespace BulkTestUploader.Control
             suitesGridView.CellContentClick += SuitesGridView_CellContentClick;
         }
 
-        public void LoadSuites(List<Suite> testSuites)
+        public void LoadSuites(List<GridSuite> testSuites)
         {
             suiteBindingList.Clear();
-            foreach (Suite suite in testSuites)
+            foreach (GridSuite suite in testSuites)
             {
                 suiteBindingList.Add(suite);
             }
             InputControl?.SetSuiteButtonText($"{testSuites.Count} Suites Selected");
         }
 
-        public BindingList<Suite> GetSuiteList()
+        public BindingList<GridSuite> GetSuiteList()
         {
             return suiteBindingList;
         }
 
-        private void SuitesGridView_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        private void SuitesGridView_CellContentClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
 
@@ -55,7 +55,7 @@ namespace BulkTestUploader.Control
 
                     if (ofd.ShowDialog() == DialogResult.OK)
                     {
-                        if (suitesGridView.Rows[e.RowIndex].DataBoundItem is Suite suite)
+                        if (suitesGridView.Rows[e.RowIndex].DataBoundItem is GridSuite suite)
                         {
                             suite.FilePath = ofd.FileName;
                         }

@@ -41,7 +41,7 @@ namespace BulkTestUploader.Forms
             {
                 foreach (TestSuite child in children)
                 {
-                    Suite suite = new Suite
+                    GridSuite suite = new GridSuite
                     {
                         SuiteId = child.Id.ToString(),
                         SuiteName = child.Name,
@@ -68,13 +68,13 @@ namespace BulkTestUploader.Forms
             
         }
 
-        public List<Suite> GetCheckedSuites()
+        public List<GridSuite> GetCheckedSuites()
         {
-            List<Suite> result = [];
+            List<GridSuite> result = [];
 
             void Collect(TreeNode node)
             {
-                if (node.Checked && node.Tag is Suite suiteInfo)
+                if (node.Checked && node.Tag is GridSuite suiteInfo)
                 {
                     result.Add(suiteInfo);
                 }

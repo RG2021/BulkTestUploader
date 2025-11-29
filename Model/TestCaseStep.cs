@@ -8,8 +8,8 @@ namespace BulkTestUploader.Model
 {
     public class TestCaseStep
     {
-        public string StepNumber { get; set; }
-        public string Action { get; set; }
-        public string Expected { get; set; }
+        public required string StepNumber { get; set; }
+        public string? Action { get; set; }
+        public string? Expected { get; set; }
     }
 }

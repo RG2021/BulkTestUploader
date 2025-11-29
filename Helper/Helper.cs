@@ -8,9 +8,12 @@ using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using WorkItem = Microsoft.VisualStudio.Services.TestManagement.TestPlanning.WebApi.WorkItem;
+using WorkItemField = BulkTestUploader.Model.WorkItemField;
 
 namespace BulkTestUploader.Helper
 {
@@ -21,95 +24,170 @@ namespace BulkTestUploader.Helper
             return !string.IsNullOrEmpty(organization) && !string.IsNullOrEmpty(patToken);
         }
 
-        public static List<CustomTestCase> LoadTestCasesFromFile(string filePath)
+        public static List<TestCaseTemplate> LoadTemplatesFromFile(string filePath)
         {
-            List<CustomTestCase> results = new List<CustomTestCase>();
+            List<TestCaseTemplate> results = new List<TestCaseTemplate>();
 
             using (IXLWorkbook workbook = new XLWorkbook(filePath))
             {
                 IXLWorksheet worksheet = workbook.Worksheets.First();
                 IXLRow header = worksheet.FirstRow();
-                Dictionary<string, int> col = header.Cells().Where(c => !string.IsNullOrWhiteSpace(c.GetString())).ToDictionary(c => c.GetString().Trim(), c => c.Address.ColumnNumber);
+                Dictionary<string, int> col = header.Cells().Where(c => !string.IsNullOrWhiteSpace(c.GetString())).ToDictionary(c => c.GetString().Trim(), c => c.Address.ColumnNumber, StringComparer.OrdinalIgnoreCase);
 
                 List<IXLRangeRow> rows = worksheet.RangeUsed().RowsUsed().Skip(1).ToList();
+                List<PropertyInfo> props = typeof(TestCaseTemplate).GetProperties(BindingFlags.Public | BindingFlags.Instance).ToList();
 
-                int groupId = 0;
-
-                List<List<IXLRangeRow>> groupedRows = rows.Select(r =>
+                foreach (IXLRangeRow row in rows)
                 {
-                    if (r.Cell(col["Work Item Type"]).GetString().Trim() == "Test case") groupId++;
-                    return new { Row = r, Group = groupId };
+                    TestCaseTemplate template = Activator.CreateInstance<TestCaseTemplate>();
 
-                }).GroupBy(x => x.Group).Select(g => g.Select(x => x.Row).ToList()).ToList();
-
-                int id = -1;
-                foreach (List<IXLRangeRow> group in groupedRows)
-                {
-                    IXLRangeRow headerRow = group.First();
-                    List<TestCaseStep> steps = new List<TestCaseStep>();
-
-                    foreach (IXLRangeRow row in group.Skip(1))
+                    foreach (PropertyInfo prop in props)
                     {
-                        string stepNumStr = row.Cell(col["Test Step"]).GetString().Trim();
+                        ExcelColumnAttribute? attr = prop.GetCustomAttribute<ExcelColumnAttribute>();
+                        string columnName = attr?.Name ?? prop.Name;
 
-                        if (!int.TryParse(stepNumStr, out int stepNum))
-                        {
-                            continue;
-                        }
+                        if (!col.TryGetValue(columnName, out var idx)) continue;
 
-                        steps.Add(new TestCaseStep
+                        string? cellValue = row.Cell(idx).GetString()?.Trim();
+                        if (string.IsNullOrEmpty(cellValue)) continue;
+
+                        if(prop.PropertyType == typeof(string))
                         {
-                            StepNumber = stepNumStr,
-                            Action = row.Cell(col["Step Action"]).GetString()?.Trim() ?? "",
-                            Expected = row.Cell(col["Step Expected"]).GetString()?.Trim() ?? ""
-                        });
+                            prop.SetValue(template, cellValue);
+                        }   
                     }
 
-                    CustomTestCase customTestCase = new CustomTestCase
-                    {
-                        Id = id--,
-                        Title = headerRow.Cell(col["Title"]).GetString()?.Trim() ?? null,
-                        Tags = headerRow.Cell(col["Tags"]).GetString()?.Trim() ?? null,
-                        Steps = steps,
-                        // ParentItem = headerRow.Cell(col["Parent Item"]).GetString()?.Trim() ?? null,
-                    };
-
-                    results.Add(customTestCase);
+                    results.Add(template!);
                 }
+
+                return results;
+            }
+            
+        }
+
+        public static List<TestCaseItem> LoadTestCasesFromFile(string filePath, TestPlan testPlan)
+        {
+            List<TestCaseTemplate> testCaseTemplates = LoadTemplatesFromFile(filePath);
+            List<TestCaseItem> results = new List<TestCaseItem>();
+
+            if (testCaseTemplates == null || testCaseTemplates.Count == 0)
+                return results;
+
+            List<List<TestCaseTemplate>> groups = new List<List<TestCaseTemplate>>();
+            List<TestCaseTemplate>? currentGroup = null;
+
+            foreach (TestCaseTemplate tpl in testCaseTemplates)
+            {
+                if (string.Equals(tpl.WorkItemType?.Trim(), "Test case", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentGroup = new List<TestCaseTemplate>();
+                    groups.Add(currentGroup);
+                    currentGroup.Add(tpl);
+                }
+                else
+                {
+                    currentGroup?.Add(tpl);
+                }
+            }
+
+            int testCaseId = -1;
+            foreach (List<TestCaseTemplate> group in groups)
+            {
+                TestCaseTemplate headerTpl = group.First();
+                List<TestCaseTemplate> stepTpls = group.Skip(1).ToList();
+
+                List<TestCaseStep> steps = new List<TestCaseStep>();
+
+                foreach (TestCaseTemplate st in stepTpls)
+                {
+                    string? stepNumber = st.TestStep?.ToString() ?? null;
+                    if (string.IsNullOrEmpty(stepNumber)) continue;
+
+                    steps.Add(new TestCaseStep
+                    {
+                        StepNumber = stepNumber,
+                        Action = st.StepAction?.Trim(),
+                        Expected = st.StepExpected?.Trim()
+                    });
+                }
+
+                TestCaseItem testCase = new TestCaseItem
+                {
+                    Id = testCaseId--,
+                    Title = headerTpl.Title?.Trim() ?? null,
+                    Tags = headerTpl.Tags?.Trim() ?? null,
+                    Steps = BuildStepsXml(steps),
+                    AreaPath = testPlan.AreaPath,
+                    IterationPath = testPlan.Iteration,
+                    ParentItem = headerTpl.ParentItem?.ToString().Trim() ?? null
+                };
+
+                results.Add(testCase);
             }
 
             return results;
         }
 
-        public static List<List<JsonPatchOperation>> GenerateBatchForTestCases(List<CustomTestCase> customTestCases, TestPlan testPlan)
+        public static List<List<JsonPatchOperation>> GenerateBatchForTestCases(List<TestCaseItem> testCases)
         {
             List<List<JsonPatchOperation>> results = new List<List<JsonPatchOperation>>();
-            foreach (CustomTestCase customTestCase in customTestCases)
+            foreach (TestCaseItem testCase in testCases)
             {
                 List<JsonPatchOperation> patchOperations = new List<JsonPatchOperation>();
-                TestCase testCase = BuildTestCase(customTestCase, testPlan);
+                List<PropertyInfo> properties = testCase.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public).ToList();
 
-                patchOperations.Add(new JsonPatchOperation()
+                foreach (PropertyInfo prop in properties)
                 {
-                    Operation = Operation.Add,
-                    Path = "/id",
-                    Value = customTestCase.Id
-                });
+                    WorkItemField? attr = prop.GetCustomAttribute<WorkItemField>();
+                    if (attr == null) continue;
 
-                foreach (var field in testCase.workItem.WorkItemFields)
-                {
-                    var fieldDict = field as CustomWorkItemField;
+                    object? value = prop.GetValue(testCase);
 
-                    if (fieldDict != null && !String.IsNullOrEmpty(fieldDict.Name) && !String.IsNullOrEmpty(fieldDict.Value))
+                    if(value == null || (value is string str && string.IsNullOrEmpty(str))) continue;
+
+                    if(attr.Type == "WorkItem" && attr.Relation != null)
                     {
-                        patchOperations.Add(new JsonPatchOperation
+                        string parentIdStr = value.ToString() ?? string.Empty;
+                        value = new
                         {
-                            Operation = Operation.Add,
-                            Path = $"/fields/{fieldDict.Name}",
-                            Value = fieldDict.Value
-                        });
+                            rel = attr.Relation,
+                            url = $"vstfs:///WorkItemTracking/WorkItem/{parentIdStr}",
+                        };
                     }
+
+                    string path = string.IsNullOrEmpty(attr.Path) ? $"/fields/{attr.Name}" : attr.Path;
+
+                    patchOperations.Add(new JsonPatchOperation
+                    {
+                        Operation = Operation.Add,
+                        Path = path,
+                        Value = value
+                    });
                 }
+
+                //TestCase testCase = BuildTestCase(customTestCase, testPlan);
+
+                //patchOperations.Add(new JsonPatchOperation()
+                //{
+                //    Operation = Operation.Add,
+                //    Path = "/id",
+                //    Value = customTestCase.Id
+                //});
+
+                //foreach (var field in testCase.workItem.WorkItemFields)
+                //{
+                //    var fieldDict = field as CustomWorkItemField;
+
+                //    if (fieldDict != null && !String.IsNullOrEmpty(fieldDict.Name) && !String.IsNullOrEmpty(fieldDict.Value))
+                //    {
+                //        patchOperations.Add(new JsonPatchOperation
+                //        {
+                //            Operation = Operation.Add,
+                //            Path = $"/fields/{fieldDict.Name}",
+                //            Value = fieldDict.Value
+                //        });
+                //    }
+                //}
 
                 results.Add(patchOperations);
             }
@@ -117,43 +195,43 @@ namespace BulkTestUploader.Helper
             return results;
         }
 
-        private static TestCase BuildTestCase(CustomTestCase customTestCase, TestPlan testPlan)
-        {
-            return new TestCase
-            {
-                workItem = new WorkItemDetails
-                {
-                    WorkItemFields = new List<object>
-                    {
-                        new CustomWorkItemField
-                        {
-                            Name = "System.Title",
-                            Value = customTestCase.Title
-                        },
-                        new CustomWorkItemField
-                        {
-                            Name = "System.Tags",
-                            Value = customTestCase.Tags
-                        },
-                        new CustomWorkItemField
-                        {
-                            Name = "Microsoft.VSTS.TCM.Steps",
-                            Value = BuildStepsXml(customTestCase.Steps)
-                        },
-                        new CustomWorkItemField
-                        {
-                            Name = "System.AreaPath",
-                            Value = testPlan.AreaPath
-                        },
-                        new CustomWorkItemField
-                        {
-                            Name = "System.IterationPath",
-                            Value = testPlan.Iteration
-                        }
-                    }
-                }
-            };
-        }
+        //private static TestCase BuildTestCase(TestCaseItem customTestCase, TestPlan testPlan)
+        //{
+        //    return new TestCase
+        //    {
+        //        workItem = new WorkItemDetails
+        //        {
+        //            WorkItemFields = new List<object>
+        //            {
+        //                new CustomWorkItemField
+        //                {
+        //                    Name = "System.Title",
+        //                    Value = customTestCase.Title
+        //                },
+        //                new CustomWorkItemField
+        //                {
+        //                    Name = "System.Tags",
+        //                    Value = customTestCase.Tags
+        //                },
+        //                new CustomWorkItemField
+        //                {
+        //                    Name = "Microsoft.VSTS.TCM.Steps",
+        //                    Value = customTestCase.Steps
+        //                },
+        //                new CustomWorkItemField
+        //                {
+        //                    Name = "System.AreaPath",
+        //                    Value = testPlan.AreaPath
+        //                },
+        //                new CustomWorkItemField
+        //                {
+        //                    Name = "System.IterationPath",
+        //                    Value = testPlan.Iteration
+        //                }
+        //            }
+        //        }
+        //    };
+        //}
 
         private static string BuildStepsXml(List<TestCaseStep> steps)
         {

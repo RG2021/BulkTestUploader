@@ -6,12 +6,12 @@ namespace BulkTestUploader.Control
 {
     public partial class BaseControl : Form
     {
-        protected static DevopsService? DevopsService;
-        protected static LogsControl? Logger;
-        protected static InputControl? InputControl;
-        protected static SuitesGridControl? SuitesGridControl;
-        protected static ActionsControl? ActionsControl;
-        protected static StatusBarControl? StatusBarControl;
+        protected static DevopsService DevopsService;
+        protected static LogsControl Logger;
+        protected static InputControl InputControl;
+        protected static SuitesGridControl SuitesGridControl;
+        protected static ActionsControl ActionsControl;
+        protected static StatusBarControl StatusBarControl;
 
         public BaseControl()
         {
