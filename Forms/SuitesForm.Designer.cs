@@ -100,6 +100,7 @@
             ClientSize = new Size(697, 450);
             Controls.Add(splitContainer1);
             Name = "SuitesForm";
+            StartPosition = FormStartPosition.CenterParent;
             Text = "Suites";
             splitContainer1.Panel1.ResumeLayout(false);
             splitContainer1.Panel2.ResumeLayout(false);
