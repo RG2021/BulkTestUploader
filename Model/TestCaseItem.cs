@@ -29,5 +29,8 @@ namespace BulkTestUploader.Model
 
         [WorkItemField(Name = "System.AreaPath")]
         public string AreaPath { get; set; } = string.Empty;
+
+        [WorkItemField(Name = "System.AssignedTo")]
+        public string? AssignedTo { get; set; } = string.Empty;
     }
 }

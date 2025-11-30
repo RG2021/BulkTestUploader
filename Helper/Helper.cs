@@ -119,7 +119,8 @@ namespace BulkTestUploader.Helper
                     Steps = BuildStepsXml(steps),
                     AreaPath = testPlan.AreaPath,
                     IterationPath = testPlan.Iteration,
-                    ParentItem = headerTpl.ParentItem?.ToString().Trim() ?? null
+                    ParentItem = headerTpl.ParentItem?.ToString().Trim() ?? null,
+                    AssignedTo = headerTpl.AssignedTo?.ToString().Trim() ?? null
                 };
 
                 results.Add(testCase);

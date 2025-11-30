@@ -3,6 +3,7 @@ using ClosedXML.Excel;
 using Microsoft.TeamFoundation.Core.WebApi;
 using Microsoft.TeamFoundation.TestManagement.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
+using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.TestManagement.TestPlanning.WebApi;
 using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
 using Newtonsoft.Json;
@@ -77,7 +78,7 @@ namespace BulkTestUploader.Control
                 }
 
                 Logger?.Log($"Found {selectedValidSuites.Count} valid test suites for upload.");
-                await Task.Run(async() => await UploadSuites(selectedProject, selectedTestPlan, selectedValidSuites));
+                await Task.Run(() => UploadSuites(selectedProject, selectedTestPlan, selectedValidSuites));
                 Logger?.Log($"Uploaded test cases successfully.");
 
             }
@@ -99,8 +100,10 @@ namespace BulkTestUploader.Control
             }
         }
 
-        private async Task UploadSuites(TeamProjectReference project, TestPlan testPlan, List<GridSuite> suites)
+        private void UploadSuites(TeamProjectReference project, TestPlan testPlan, List<GridSuite> suites)
         {
+            int batchSize = 150;
+
             string projectName = project.Name ?? string.Empty;
             Guid projectId = Guid.Parse(project.Id.ToString());
             int testPlanId = int.Parse(testPlan.Id.ToString());
@@ -109,8 +112,6 @@ namespace BulkTestUploader.Control
 
             foreach (GridSuite suite in suites)
             {
-                suiteStopWatch.Restart();
-
                 if (isOperationCancelled)
                 {
                     isOperationCancelled = false;
@@ -118,31 +119,44 @@ namespace BulkTestUploader.Control
                 }
 
                 List<TestCaseItem> testCases = LoadTestCasesFromFile(suite.FilePath, testPlan);
-                List<List<JsonPatchOperation>> testCasesBatch = GenerateBatchForTestCases(testCases);
-                List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, testCasesBatch);
-
-                List<int> createdTestCaseIds = [];
-                foreach (WitBatchResponse response in responses.Where(r => r.Code == 200))
+                if (testCases.Count == 0)
                 {
-                    dynamic output = JsonConvert.DeserializeObject(response.Body);
-                    createdTestCaseIds.Add((int)output.id);
-                }
-
-                if (createdTestCaseIds.Count == 0)
-                {
-                    Logger?.Log($"No test cases were created for suite '{suite.SuiteId}'. Skipping adding to suite.");
+                    Logger?.Log($"No test cases found in file {suite.FilePath} for suite {suite.SuiteId}. Skipping.");
+                    StatusBarControl.UpdateProgress(progressStep);
+                    StatusBarControl.SetUploadedCount(StatusBarControl.UpdateProgress(0) / progressStep, suites.Count);
                     continue;
                 }
 
-                Logger?.Log($"Created {createdTestCaseIds.Count} test cases for suite id '{suite.SuiteId}'.");
-                List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdTestCaseIds);
+                foreach (var testCasesChunk in testCases.Chunk(batchSize))
+                {
+                    if (isOperationCancelled)
+                    {
+                        isOperationCancelled = false;
+                        throw new OperationCanceledException("Upload operation was cancelled by the user.");
+                    }
+
+                    suiteStopWatch.Restart();
+
+                    List<TestCaseItem> chunkList = [.. testCasesChunk];
+                    List<List<JsonPatchOperation>> patchBatch = GenerateBatchForTestCases(chunkList);
+                    List<WitBatchResponse> responses = DevopsService.CreateTestCases(projectId, patchBatch);
+                    List<int> createdIds = responses.Where(r => r.Code == 200).Select(r => (int)JsonConvert.DeserializeObject<dynamic>(r.Body)?.id).ToList();
+
+                    if (createdIds.Count > 0)
+                    {
+                        Logger?.Log($"Created {createdIds.Count} test cases for suite id {suite.SuiteId}.");
+                        List<TestCase> uploadedTestCases = DevopsService.AddTestCaseToSuite(projectName, testPlanId, int.Parse(suite.SuiteId), createdIds);
+                        Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id {suite.SuiteId} in {suiteStopWatch.ElapsedMilliseconds} ms.");
+                    }
+                    else
+                    {
+                        Logger?.Log($"No test cases were created for suite {suite.SuiteId} in current batch.");
+                    }
+                }
 
                 suiteStopWatch.Stop();
-
                 StatusBarControl.UpdateProgress(progressStep);
                 StatusBarControl.SetUploadedCount(StatusBarControl.UpdateProgress(0) / progressStep, suites.Count);
-
-                Logger?.Log($"Uploaded {uploadedTestCases.Count} test cases to suite id '{suite.SuiteId}' in {suiteStopWatch.ElapsedMilliseconds} ms.");
             }
         }
 

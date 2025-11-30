@@ -24,5 +24,8 @@ namespace BulkTestUploader.Model
 
         [ExcelColumn("Tags")]
         public string? Tags { get; set; }
+
+        [ExcelColumn("Assigned To")]
+        public string? AssignedTo { get; set; }
     }
 }
